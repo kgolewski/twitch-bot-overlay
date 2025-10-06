@@ -31,6 +31,8 @@ function matchesChannel(eventChannel) {
 
 function useDuelSocket() {
   const [duel, setDuel] = useState(null);
+  const [battleLog, setBattleLog] = useState(null);
+  const [currentTurnIndex, setCurrentTurnIndex] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState(CONNECTION_STATES.DISCONNECTED);
   const socketRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -64,6 +66,26 @@ function useDuelSocket() {
 
           if (payload.type === 'duel_state' && payload.duel) {
             setDuel(payload.duel);
+            setBattleLog(null);
+            setCurrentTurnIndex(0);
+          } else if (payload.type === 'duel_battle_log' && payload.duel) {
+            setBattleLog(payload.duel);
+            setDuel({
+              id: payload.duel.id,
+              status: payload.duel.status,
+              active: false,
+              round: payload.duel.rounds,
+              lastAction: payload.duel.log[payload.duel.log.length - 1]?.description ?? '',
+              challenger: payload.duel.combatants?.challenger ?? null,
+              opponent: payload.duel.combatants?.opponent ?? null,
+              result: {
+                winner: payload.duel.winner,
+                loser: payload.duel.loser,
+                gold: payload.duel.reward?.gold ?? 0,
+                exp: payload.duel.reward?.exp ?? 0,
+              },
+            });
+            setCurrentTurnIndex(0);
           } else if (payload.type === 'connection' && payload.status === 'connected') {
             setConnectionStatus(CONNECTION_STATES.CONNECTED);
           }
@@ -128,7 +150,14 @@ function useDuelSocket() {
     };
   }, []);
 
-  return { duel, connectionStatus, send };
+  return {
+    duel,
+    connectionStatus,
+    battleLog,
+    currentTurnIndex,
+    setCurrentTurnIndex,
+    send,
+  };
 }
 
 export default useDuelSocket;
